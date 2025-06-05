@@ -1,0 +1,41 @@
+{
+  "name": "hoikuen-map",
+  "version": "1.0.0",
+  "description": "保育園空き状況マップアプリケーション",
+  "main": "index.html",
+  "scripts": {
+    "start": "live-server --port=3000 --host=0.0.0.0 --no-browser",
+    "serve": "live-server --port=3000 --host=0.0.0.0",
+    "serve-python": "python3 -m http.server 8000",
+    "dev": "live-server --port=3000 --host=0.0.0.0 --watch=.",
+    "test": "echo 'ブラウザでtest-runner.htmlを開いてテストを実行してください' && python3 -m http.server 8000",
+    "test:open": "open http://localhost:8000/test-runner.html && python3 -m http.server 8000",
+    "format": "prettier --write \"**/*.{html,css,js,json,md}\"",
+    "format-check": "prettier --check \"**/*.{html,css,js,json,md}\""
+  },
+  "keywords": [
+    "nursery",
+    "map",
+    "leaflet",
+    "webapp",
+    "tokyo",
+    "meguro"
+  ],
+  "author": "保育園マップ開発チーム",
+  "license": "MIT",
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "prettier": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/hoikuen-map.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/hoikuen-map/issues"
+  },
+  "homepage": "https://github.com/your-username/hoikuen-map#readme"
+}

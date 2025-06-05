@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>保育園空き状況マップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <h1>保育園空き状況マップ</h1>
+            <div class="header-controls">
+                <button id="favorites-btn" class="btn btn-secondary">お気に入り</button>
+                <button id="filter-btn" class="btn btn-primary">フィルター</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <aside class="sidebar" id="sidebar">
+                <div class="filter-panel">
+                    <h3>フィルター</h3>
+                    
+                    <div class="filter-group">
+                        <label for="age-filter">年齢</label>
+                        <select id="age-filter" class="form-control">
+                            <option value="">すべて</option>
+                            <option value="0">0歳児</option>
+                            <option value="1">1歳児</option>
+                            <option value="2">2歳児</option>
+                            <option value="3">3歳児</option>
+                            <option value="4">4歳児</option>
+                            <option value="5">5歳児</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="facility-type-filter">施設類型</label>
+                        <select id="facility-type-filter" class="form-control">
+                            <option value="">すべて</option>
+                            <option value="私立認可保育園">私立認可保育園 (84件)</option>
+                            <option value="公立認可保育園">公立認可保育園 (14件)</option>
+                            <option value="小規模保育所">小規模保育所 (11件)</option>
+                            <option value="認定こども園">認定こども園 (4件)</option>
+                            <option value="事業所型保育所">事業所型保育所 (2件)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>
+                            <input type="checkbox" id="availability-filter"> 空きありのみ表示
+                        </label>
+                    </div>
+
+                    <div class="filter-group">
+                        <button id="clear-filters" class="btn btn-outline">フィルターをクリア</button>
+                    </div>
+                </div>
+
+                <div class="favorites-panel" id="favorites-panel" style="display: none;">
+                    <h3>お気に入り保育園</h3>
+                    <div id="favorites-list" class="favorites-list">
+                        <p class="no-favorites">お気に入りに追加された保育園はありません</p>
+                    </div>
+                </div>
+
+                <div class="nursery-info" id="nursery-info" style="display: none;">
+                    <h3>保育園詳細</h3>
+                    <div id="nursery-details"></div>
+                </div>
+            </aside>
+
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="map-legend">
+                    <div class="legend-item">
+                        <span class="legend-marker available"></span>
+                        <span>空きあり</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker full"></span>
+                        <span>満員</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker partial"></span>
+                        <span>一部空きあり</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
