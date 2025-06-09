@@ -1,5 +1,24 @@
 // アプリケーションの状態管理
 class NurseryMapApp {
+    // 定数定義
+    static CONSTANTS = {
+        // 目黒区の中心座標（緯度、経度）
+        MEGURO_CENTER_LAT: 35.6339,
+        MEGURO_CENTER_LNG: 139.6917,
+        // 地図のデフォルトズームレベル（区全体が見える程度）
+        DEFAULT_ZOOM_LEVEL: 13,
+        // マーカーサイズ設定
+        MARKER_SIZE: 20,
+        MARKER_ANCHOR_OFFSET: 10,
+        POPUP_ANCHOR_OFFSET: -10,
+        // 利用可能数による色分け閾値
+        MIN_AVAILABLE_FOR_GREEN: 5,
+        NO_AVAILABILITY: 0,
+        // モバイル判定の画面幅閾値（px）
+        MOBILE_BREAKPOINT: 768,
+        // LocalStorageキー
+        FAVORITES_STORAGE_KEY: 'nursery-favorites'
+    };
     constructor() {
         this.map = null;
         this.nurseryData = [];
@@ -16,7 +35,7 @@ class NurseryMapApp {
 
     async init() {
         try {
-            this.initMap();
+            this.initializeMap();
             await this.loadNurseryData();
             this.setupEventListeners();
             this.renderNurseries();
@@ -26,11 +45,14 @@ class NurseryMapApp {
         }
     }
 
-    initMap() {
-        // 目黒区の中心座標
-        const center = [35.6339, 139.6917];
+    initializeMap() {
+        // 目黒区の中心座標を使用して地図を初期化
+        const centerCoordinates = [
+            NurseryMapApp.CONSTANTS.MEGURO_CENTER_LAT, 
+            NurseryMapApp.CONSTANTS.MEGURO_CENTER_LNG
+        ];
         
-        this.map = L.map('map').setView(center, 13);
+        this.map = L.map('map').setView(centerCoordinates, NurseryMapApp.CONSTANTS.DEFAULT_ZOOM_LEVEL);
         
         // OpenStreetMapタイルを追加
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -50,67 +72,87 @@ class NurseryMapApp {
     }
 
     parseCSV(csvText) {
-        const lines = csvText.trim().split('\n');
-        const headers = lines[0].split(',');
-        const data = [];
+        const csvLines = csvText.trim().split('\n');
+        const csvHeaders = csvLines[0].split(',');
+        const validNurseries = [];
 
-        for (let i = 1; i < lines.length; i++) {
-            const values = this.parseCSVLine(lines[i]);
-            if (values.length >= headers.length) {
-                const nursery = {
-                    id: i,
-                    date: values[0],
-                    name: values[1],
-                    type: values[2],
-                    ageGroup: values[3],
-                    age0: parseInt(values[4]) || 0,
-                    age1: parseInt(values[5]) || 0,
-                    age2: parseInt(values[6]) || 0,
-                    age3: parseInt(values[7]) || 0,
-                    age4: parseInt(values[8]) || 0,
-                    age5: parseInt(values[9]) || 0,
-                    extendedCare: values[10],
-                    latitude: parseFloat(values[11]),
-                    longitude: parseFloat(values[12])
-                };
+        for (let lineIndex = 1; lineIndex < csvLines.length; lineIndex++) {
+            const parsedValues = this.parseCSVLine(csvLines[lineIndex]);
+            
+            // フィールド数が不十分な場合はスキップ
+            if (parsedValues.length < csvHeaders.length) {
+                continue;
+            }
 
-                // 緯度・経度が有効な場合のみ追加
-                if (nursery.latitude && nursery.longitude && !isNaN(nursery.latitude) && !isNaN(nursery.longitude)) {
-                    nursery.totalAvailable = nursery.age0 + nursery.age1 + nursery.age2 + nursery.age3 + nursery.age4 + nursery.age5;
-                    data.push(nursery);
-                }
+            const nurseryData = this.createNurseryObjectFromValues(parsedValues, lineIndex);
+            
+            // 有効な座標を持つ保育園のみ追加
+            if (this.hasValidCoordinates(nurseryData)) {
+                this.calculateTotalAvailability(nurseryData);
+                validNurseries.push(nurseryData);
             }
         }
 
-        return data;
+        return validNurseries;
     }
 
-    parseCSVLine(line) {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
+    createNurseryObjectFromValues(values, id) {
+        return {
+            id: id,
+            date: values[0],
+            name: values[1],
+            type: values[2],
+            ageGroup: values[3],
+            age0: parseInt(values[4]) || 0,
+            age1: parseInt(values[5]) || 0,
+            age2: parseInt(values[6]) || 0,
+            age3: parseInt(values[7]) || 0,
+            age4: parseInt(values[8]) || 0,
+            age5: parseInt(values[9]) || 0,
+            extendedCare: values[10],
+            latitude: parseFloat(values[11]),
+            longitude: parseFloat(values[12])
+        };
+    }
 
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
+    hasValidCoordinates(nursery) {
+        return nursery.latitude && 
+               nursery.longitude && 
+               !isNaN(nursery.latitude) && 
+               !isNaN(nursery.longitude);
+    }
+
+    calculateTotalAvailability(nursery) {
+        nursery.totalAvailable = nursery.age0 + nursery.age1 + nursery.age2 + 
+                               nursery.age3 + nursery.age4 + nursery.age5;
+    }
+
+    parseCSVLine(csvLine) {
+        const parsedFields = [];
+        let currentField = '';
+        let isInsideQuotes = false;
+
+        for (let characterIndex = 0; characterIndex < csvLine.length; characterIndex++) {
+            const character = csvLine[characterIndex];
             
-            if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                result.push(current.trim());
-                current = '';
+            if (character === '"') {
+                isInsideQuotes = !isInsideQuotes;
+            } else if (character === ',' && !isInsideQuotes) {
+                parsedFields.push(currentField.trim());
+                currentField = '';
             } else {
-                current += char;
+                currentField += character;
             }
         }
         
-        result.push(current.trim());
-        return result;
+        parsedFields.push(currentField.trim());
+        return parsedFields;
     }
 
-    getMarkerColor(nursery) {
-        if (nursery.totalAvailable === 0) {
+    calculateMarkerColorClass(nursery) {
+        if (nursery.totalAvailable === NurseryMapApp.CONSTANTS.NO_AVAILABILITY) {
             return 'marker-full';
-        } else if (nursery.totalAvailable >= 5) {
+        } else if (nursery.totalAvailable >= NurseryMapApp.CONSTANTS.MIN_AVAILABLE_FOR_GREEN) {
             return 'marker-available';
         } else {
             return 'marker-partial';
@@ -118,13 +160,13 @@ class NurseryMapApp {
     }
 
     createCustomIcon(nursery) {
-        const colorClass = this.getMarkerColor(nursery);
+        const colorClass = this.calculateMarkerColorClass(nursery);
         
         return L.divIcon({
             className: `custom-marker ${colorClass}`,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-            popupAnchor: [0, -10]
+            iconSize: [NurseryMapApp.CONSTANTS.MARKER_SIZE, NurseryMapApp.CONSTANTS.MARKER_SIZE],
+            iconAnchor: [NurseryMapApp.CONSTANTS.MARKER_ANCHOR_OFFSET, NurseryMapApp.CONSTANTS.MARKER_ANCHOR_OFFSET],
+            popupAnchor: [0, NurseryMapApp.CONSTANTS.POPUP_ANCHOR_OFFSET]
         });
     }
 
@@ -157,7 +199,7 @@ class NurseryMapApp {
         this.markers = [];
 
         // フィルタリングされた保育園データを取得
-        const filteredNurseries = this.getFilteredNurseries();
+        const filteredNurseries = this.filterNurseriesByCurrentFilters();
 
         // マーカーを追加
         filteredNurseries.forEach(nursery => {
@@ -171,29 +213,54 @@ class NurseryMapApp {
         });
     }
 
-    getFilteredNurseries() {
+    filterNurseriesByCurrentFilters() {
         return this.nurseryData.filter(nursery => {
-            // 年齢フィルター
-            if (this.currentFilters.age !== '') {
-                const ageKey = `age${this.currentFilters.age}`;
-                if (nursery[ageKey] === 0) {
-                    return false;
-                }
-            }
-
-            // 施設類型フィルター
-            if (this.currentFilters.facilityType !== '' && 
-                nursery.type !== this.currentFilters.facilityType) {
-                return false;
-            }
-
-            // 空きありフィルター
-            if (this.currentFilters.availabilityOnly && nursery.totalAvailable === 0) {
-                return false;
-            }
-
-            return true;
+            return this.shouldIncludeNurseryInFilter(nursery);
         });
+    }
+
+    shouldIncludeNurseryInFilter(nursery) {
+        // 年齢フィルターで除外される場合は早期リターン
+        if (!this.passesAgeFilter(nursery)) {
+            return false;
+        }
+
+        // 施設類型フィルターで除外される場合は早期リターン
+        if (!this.passesFacilityTypeFilter(nursery)) {
+            return false;
+        }
+
+        // 空きありフィルターで除外される場合は早期リターン
+        if (!this.passesAvailabilityFilter(nursery)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    passesAgeFilter(nursery) {
+        if (this.currentFilters.age === '') {
+            return true;
+        }
+        
+        const ageKey = `age${this.currentFilters.age}`;
+        return nursery[ageKey] > 0;
+    }
+
+    passesFacilityTypeFilter(nursery) {
+        if (this.currentFilters.facilityType === '') {
+            return true;
+        }
+        
+        return nursery.type === this.currentFilters.facilityType;
+    }
+
+    passesAvailabilityFilter(nursery) {
+        if (!this.currentFilters.availabilityOnly) {
+            return true;
+        }
+        
+        return nursery.totalAvailable > 0;
     }
 
     setupEventListeners() {
@@ -228,7 +295,7 @@ class NurseryMapApp {
 
         // モバイル対応: マップクリックでサイドバーを閉じる
         this.map.on('click', () => {
-            if (window.innerWidth <= 768) {
+            if (window.innerWidth <= NurseryMapApp.CONSTANTS.MOBILE_BREAKPOINT) {
                 this.closeSidebar();
             }
         });
@@ -249,10 +316,10 @@ class NurseryMapApp {
     }
 
     toggleFavorite(nurseryId) {
-        const index = this.favorites.indexOf(nurseryId);
+        const favoriteIndex = this.favorites.indexOf(nurseryId);
         
-        if (index > -1) {
-            this.favorites.splice(index, 1);
+        if (favoriteIndex > -1) {
+            this.favorites.splice(favoriteIndex, 1);
         } else {
             this.favorites.push(nurseryId);
         }
@@ -277,48 +344,61 @@ class NurseryMapApp {
     }
 
     createNurseryDetailsHTML(nursery) {
-        const isFavorite = this.favorites.includes(nursery.id);
-        const favoriteButtonText = isFavorite ? 'お気に入りから削除' : 'お気に入りに追加';
-        const favoriteButtonClass = isFavorite ? 'btn-secondary active' : 'btn-primary';
+        const favoriteInfo = this.getFavoriteButtonInfo(nursery.id);
+        const capacityGridHTML = this.generateCapacityGridHTML(nursery);
+        const extendedCareHTML = this.generateExtendedCareHTML(nursery);
 
         return `
             <div class="nursery-details-content">
                 <h4 class="nursery-title">${nursery.name}</h4>
                 <span class="nursery-type">${nursery.type}</span>
                 
-                <div class="capacity-grid">
-                    <div class="capacity-item">
-                        <div class="capacity-age">0歳</div>
-                        <div class="capacity-count ${nursery.age0 > 0 ? 'available' : 'full'}">${nursery.age0}</div>
-                    </div>
-                    <div class="capacity-item">
-                        <div class="capacity-age">1歳</div>
-                        <div class="capacity-count ${nursery.age1 > 0 ? 'available' : 'full'}">${nursery.age1}</div>
-                    </div>
-                    <div class="capacity-item">
-                        <div class="capacity-age">2歳</div>
-                        <div class="capacity-count ${nursery.age2 > 0 ? 'available' : 'full'}">${nursery.age2}</div>
-                    </div>
-                    <div class="capacity-item">
-                        <div class="capacity-age">3歳</div>
-                        <div class="capacity-count ${nursery.age3 > 0 ? 'available' : 'full'}">${nursery.age3}</div>
-                    </div>
-                    <div class="capacity-item">
-                        <div class="capacity-age">4歳</div>
-                        <div class="capacity-count ${nursery.age4 > 0 ? 'available' : 'full'}">${nursery.age4}</div>
-                    </div>
-                    <div class="capacity-item">
-                        <div class="capacity-age">5歳</div>
-                        <div class="capacity-count ${nursery.age5 > 0 ? 'available' : 'full'}">${nursery.age5}</div>
-                    </div>
-                </div>
+                ${capacityGridHTML}
                 
                 <p><strong>合計空き数:</strong> ${nursery.totalAvailable}人</p>
-                ${nursery.extendedCare && nursery.extendedCare !== '' ? `<p><strong>延長保育:</strong> ${nursery.extendedCare}時間</p>` : ''}
+                ${extendedCareHTML}
                 
-                <button class="btn ${favoriteButtonClass} favorite-btn" onclick="app.toggleFavorite(${nursery.id})">${favoriteButtonText}</button>
+                <button class="btn ${favoriteInfo.buttonClass} favorite-btn" onclick="app.toggleFavorite(${nursery.id})">${favoriteInfo.buttonText}</button>
             </div>
         `;
+    }
+
+    getFavoriteButtonInfo(nurseryId) {
+        const isFavorite = this.favorites.includes(nurseryId);
+        return {
+            buttonText: isFavorite ? 'お気に入りから削除' : 'お気に入りに追加',
+            buttonClass: isFavorite ? 'btn-secondary active' : 'btn-primary'
+        };
+    }
+
+    generateCapacityGridHTML(nursery) {
+        const ageGroups = [
+            { age: 0, count: nursery.age0 },
+            { age: 1, count: nursery.age1 },
+            { age: 2, count: nursery.age2 },
+            { age: 3, count: nursery.age3 },
+            { age: 4, count: nursery.age4 },
+            { age: 5, count: nursery.age5 }
+        ];
+
+        const capacityItems = ageGroups.map(group => {
+            const availabilityClass = group.count > 0 ? 'available' : 'full';
+            return `
+                <div class="capacity-item">
+                    <div class="capacity-age">${group.age}歳</div>
+                    <div class="capacity-count ${availabilityClass}">${group.count}</div>
+                </div>
+            `;
+        }).join('');
+
+        return `<div class="capacity-grid">${capacityItems}</div>`;
+    }
+
+    generateExtendedCareHTML(nursery) {
+        if (!nursery.extendedCare || nursery.extendedCare === '') {
+            return '';
+        }
+        return `<p><strong>延長保育:</strong> ${nursery.extendedCare}時間</p>`;
     }
 
     toggleFavoritesPanel() {
@@ -359,7 +439,7 @@ class NurseryMapApp {
 
     toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
-        if (window.innerWidth <= 768) {
+        if (window.innerWidth <= NurseryMapApp.CONSTANTS.MOBILE_BREAKPOINT) {
             sidebar.classList.toggle('active');
         }
     }
@@ -370,12 +450,12 @@ class NurseryMapApp {
     }
 
     loadFavorites() {
-        const saved = localStorage.getItem('nursery-favorites');
-        return saved ? JSON.parse(saved) : [];
+        const savedFavorites = localStorage.getItem(NurseryMapApp.CONSTANTS.FAVORITES_STORAGE_KEY);
+        return savedFavorites ? JSON.parse(savedFavorites) : [];
     }
 
     saveFavorites() {
-        localStorage.setItem('nursery-favorites', JSON.stringify(this.favorites));
+        localStorage.setItem(NurseryMapApp.CONSTANTS.FAVORITES_STORAGE_KEY, JSON.stringify(this.favorites));
     }
 }
 
