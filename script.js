@@ -260,6 +260,12 @@ class NurseryMapApp {
         this.saveFavorites();
         this.renderNurseries();
         this.renderFavorites();
+
+        // 詳細パネル表示中は内容を更新
+        const infoPanel = document.getElementById('nursery-info');
+        if (infoPanel && infoPanel.style.display !== 'none') {
+            this.showNurseryDetails(nurseryId);
+        }
     }
 
     showNurseryDetails(nurseryId) {
